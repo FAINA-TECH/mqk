@@ -1,0 +1,317 @@
+[
+  {
+    "salesId": "4affa4b6-30af-4ae8-8a79-0e26a83f79e6",
+    "kitchen": "Kayole",
+    "burner": "1",
+    "phone": "0790566616",
+    "amount": 20,
+    "createdAt": "2024-11-30T05:36:16.971Z",
+    "updatedAt": "2024-11-30T05:36:16.971Z"
+  },
+  {
+    "salesId": "c626360a-421a-4f25-8604-0d764f5b05e6",
+    "kitchen": "Kayole",
+    "burner": "1",
+    "phone": "0790566616",
+    "amount": 28,
+    "createdAt": "2024-11-30T05:36:51.580Z",
+    "updatedAt": "2024-11-30T05:36:51.580Z"
+  },
+  {
+    "salesId": "dc99aa0f-40d2-494e-82aa-ea30f866070f",
+    "kitchen": "Kayole",
+    "burner": "5",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T08:45:51.379Z",
+    "updatedAt": "2024-11-30T08:45:51.379Z"
+  },
+  {
+    "salesId": "6ec252a2-f33e-4558-8e98-a15bf0e002b2",
+    "kitchen": "Kayole",
+    "burner": "5",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T08:46:12.275Z",
+    "updatedAt": "2024-11-30T08:46:12.275Z"
+  },
+  {
+    "salesId": "7fff046c-b96d-4684-8fdf-c932c9a9d37b",
+    "kitchen": "Kayole",
+    "burner": "5",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T08:46:51.490Z",
+    "updatedAt": "2024-11-30T08:46:51.490Z"
+  },
+  {
+    "salesId": "cfd18454-4eb6-46fb-a197-c4e67f9ff528",
+    "kitchen": "Kayole",
+    "burner": "5",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T09:00:35.853Z",
+    "updatedAt": "2024-11-30T09:00:35.853Z"
+  },
+  {
+    "salesId": "52f9dc08-5849-43f4-81f0-faa0c9a464f6",
+    "kitchen": "Kayole",
+    "burner": "1",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T09:05:18.393Z",
+    "updatedAt": "2024-11-30T09:05:18.393Z"
+  },
+  {
+    "salesId": "56c5277d-f80f-4560-8907-25f87524a3cb",
+    "kitchen": "Kayole",
+    "burner": "2",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T09:11:56.752Z",
+    "updatedAt": "2024-11-30T09:11:56.752Z"
+  },
+  {
+    "salesId": "1081af11-0719-4e84-8782-d7078d576c6e",
+    "kitchen": "Kayole",
+    "burner": "1",
+    "phone": "0790566616",
+    "amount": 20,
+    "createdAt": "2024-11-30T09:18:37.824Z",
+    "updatedAt": "2024-11-30T09:18:37.824Z"
+  },
+  {
+    "salesId": "aab5950d-81bf-4b7a-a73c-fdaa577d447d",
+    "kitchen": "Kayole",
+    "burner": "1",
+    "phone": "0790566616",
+    "amount": 117,
+    "createdAt": "2024-11-30T09:31:47.425Z",
+    "updatedAt": "2024-11-30T09:31:47.425Z"
+  },
+  {
+    "salesId": "63a126b1-b2cf-4683-88fb-4e6dcc181b7b",
+    "kitchen": "Kayole",
+    "burner": "1",
+    "phone": "0790566616",
+    "amount": 117,
+    "createdAt": "2024-11-30T10:16:43.628Z",
+    "updatedAt": "2024-11-30T10:16:43.628Z"
+  },
+  {
+    "salesId": "12d91d1e-fe10-4b18-8910-2074d559f81b",
+    "kitchen": "Kayole",
+    "burner": "3",
+    "phone": "0790566616",
+    "amount": 117,
+    "createdAt": "2024-11-30T10:16:51.967Z",
+    "updatedAt": "2024-11-30T10:16:51.967Z"
+  },
+  {
+    "salesId": "4328e42c-4baf-4185-9a9d-69d8c571e9d5",
+    "kitchen": "Kayole",
+    "burner": "2",
+    "phone": "0790566616",
+    "amount": 20,
+    "createdAt": "2024-11-30T11:30:04.701Z",
+    "updatedAt": "2024-11-30T11:30:04.701Z"
+  },
+  {
+    "salesId": "9ca519b2-31d7-4ef1-9abc-fb45b3d46eae",
+    "kitchen": "Kayole",
+    "burner": "2",
+    "phone": "0790566616",
+    "amount": 20,
+    "createdAt": "2024-11-30T11:32:24.741Z",
+    "updatedAt": "2024-11-30T11:32:24.741Z"
+  },
+  {
+    "salesId": "9e2374eb-2f7f-482f-b203-3eb91eb189cb",
+    "kitchen": "Kayole",
+    "burner": "3",
+    "phone": "0790566616",
+    "amount": 20,
+    "createdAt": "2024-11-30T11:33:04.934Z",
+    "updatedAt": "2024-11-30T11:33:04.934Z"
+  },
+  {
+    "salesId": "d0b0a427-3f98-4be2-a98c-a33eedc01ff5",
+    "kitchen": "Kayole",
+    "burner": "1",
+    "phone": "0740794982",
+    "amount": 60,
+    "createdAt": "2024-11-30T11:54:53.963Z",
+    "updatedAt": "2024-11-30T11:54:53.963Z"
+  },
+  {
+    "salesId": "2b69e865-a920-4f3e-818b-5cb5ddac29a9",
+    "kitchen": "Kayole",
+    "burner": "1",
+    "phone": "0740794982",
+    "amount": 20,
+    "createdAt": "2024-11-30T12:01:00.144Z",
+    "updatedAt": "2024-11-30T12:01:00.144Z"
+  },
+  {
+    "salesId": "149e6418-2b29-4597-8b22-ef3b73c6b85e",
+    "kitchen": "Kayole",
+    "burner": "2",
+    "phone": "0740794982",
+    "amount": 20,
+    "createdAt": "2024-11-30T12:01:44.646Z",
+    "updatedAt": "2024-11-30T12:01:44.646Z"
+  },
+  {
+    "salesId": "f561239a-7180-4f63-9d7d-50f0de067fc3",
+    "kitchen": "Kayole",
+    "burner": "1",
+    "phone": "0740794982",
+    "amount": 20,
+    "createdAt": "2024-11-30T12:31:39.728Z",
+    "updatedAt": "2024-11-30T12:31:39.728Z"
+  },
+  {
+    "salesId": "8b3a695d-3b2a-4979-a5c0-2e59c2058b9c",
+    "kitchen": "Kayole",
+    "burner": "1",
+    "phone": "0740794982",
+    "amount": 20,
+    "createdAt": "2024-11-30T12:33:43.681Z",
+    "updatedAt": "2024-11-30T12:33:43.681Z"
+  },
+  {
+    "salesId": "6d613077-bef0-4c34-a5e2-13e840822cb1",
+    "kitchen": "Kayole",
+    "burner": "1",
+    "phone": "0740794982",
+    "amount": 20,
+    "createdAt": "2024-11-30T13:52:21.679Z",
+    "updatedAt": "2024-11-30T13:52:21.679Z"
+  },
+  {
+    "salesId": "ae02ea77-787f-4df5-9b40-240194b96ed5",
+    "kitchen": "Kayole",
+    "burner": "2",
+    "phone": "0790566616",
+    "amount": 20,
+    "createdAt": "2024-11-30T14:03:04.478Z",
+    "updatedAt": "2024-11-30T14:03:04.478Z"
+  },
+  {
+    "salesId": "fb1ad406-17bd-4387-aafc-c8d769de9f5c",
+    "kitchen": "Kayole",
+    "burner": "5",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T14:07:21.802Z",
+    "updatedAt": "2024-11-30T14:07:21.802Z"
+  },
+  {
+    "salesId": "8b9d29ea-a756-4124-a27c-2252d20bb4f5",
+    "kitchen": "Kayole",
+    "burner": "5",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T14:08:07.642Z",
+    "updatedAt": "2024-11-30T14:08:07.642Z"
+  },
+  {
+    "salesId": "5602b100-14e3-49cf-aef4-23e7ecccc8ff",
+    "kitchen": "Kayole",
+    "burner": "6",
+    "phone": "0727965941",
+    "amount": 50,
+    "createdAt": "2024-11-30T14:10:06.637Z",
+    "updatedAt": "2024-11-30T14:10:06.637Z"
+  },
+  {
+    "salesId": "0c99afbf-fb89-44a0-ad54-9c452a392ff4",
+    "kitchen": "Kayole",
+    "burner": "1",
+    "phone": "0740794982",
+    "amount": 20,
+    "createdAt": "2024-11-30T14:12:56.492Z",
+    "updatedAt": "2024-11-30T14:12:56.492Z"
+  },
+  {
+    "salesId": "c76a86bc-5297-4a6e-bc71-2afbbb9304ef",
+    "kitchen": "Kayole",
+    "burner": "1",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T14:13:26.741Z",
+    "updatedAt": "2024-11-30T14:13:26.741Z"
+  },
+  {
+    "salesId": "b5a59a96-e02e-4936-965d-099889c671f3",
+    "kitchen": "Kayole",
+    "burner": "2",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T14:14:07.912Z",
+    "updatedAt": "2024-11-30T14:14:07.912Z"
+  },
+  {
+    "salesId": "de0e8625-471e-4855-b758-bcf3151d3112",
+    "kitchen": "Kayole",
+    "burner": "3",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T14:15:26.783Z",
+    "updatedAt": "2024-11-30T14:15:26.783Z"
+  },
+  {
+    "salesId": "15dc7451-71fe-4432-a056-4f54723aac31",
+    "kitchen": "Kayole",
+    "burner": "1",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T14:15:45.150Z",
+    "updatedAt": "2024-11-30T14:15:45.150Z"
+  },
+  {
+    "salesId": "ce8c91e6-1b4d-4e78-b8f5-5c5fee42f189",
+    "kitchen": "Kayole",
+    "burner": "6",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T14:51:19.984Z",
+    "updatedAt": "2024-11-30T14:51:19.984Z"
+  },
+  {
+    "salesId": "4559f8c3-f3ba-446c-aadc-57f5b26cad73",
+    "kitchen": "Kayole",
+    "burner": "7",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T14:51:31.785Z",
+    "updatedAt": "2024-11-30T14:51:31.785Z"
+  },
+  {
+    "salesId": "d186e3f8-c95e-4236-a614-9f9d1e92107a",
+    "kitchen": "Kayole",
+    "burner": "3",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T14:52:58.656Z",
+    "updatedAt": "2024-11-30T14:52:58.656Z"
+  },
+  {
+    "salesId": "f7015d2f-4aa2-4f3d-8d8b-0682dfc6ed00",
+    "kitchen": "Kayole",
+    "burner": "3",
+    "phone": "0727965941",
+    "amount": 20,
+    "createdAt": "2024-11-30T14:54:05.427Z",
+    "updatedAt": "2024-11-30T14:54:05.427Z"
+  },
+  {
+    "salesId": "051cb6bb-318d-4959-9f19-7f0a69627f50",
+    "kitchen": "Kayole",
+    "burner": "2",
+    "phone": "0790566616",
+    "amount": 20,
+    "createdAt": "2024-12-05T06:46:29.932Z",
+    "updatedAt": "2024-12-05T06:46:29.932Z"
+  }
+]
