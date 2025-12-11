@@ -17,9 +17,8 @@ import {
   stopTimerForBurner,
   pauseTimerForBurner,
   resumeTimerForBurner,
-  getLastDigitFromString,
   getTimerState,
-  isTimerOwnedByUser, // ✅ NEW import
+  isTimerOwnedByUser,
 } from './burners';
 
 import { MqttService } from 'src/mqtt/mqtt.service';
@@ -27,8 +26,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Burner } from 'src/kitchen/entities/burner.entity';
 import { SaleTransactionService } from 'src/sale-transaction/sale-transaction.service';
-
-const topic = `megagas/kayole/kitchenOne`;
 
 @WebSocketGateway({
   cors: {
@@ -59,68 +56,61 @@ export class SocketsGateway
     }
 
     const burnerId = client.handshake.query.burnerId.toString();
-    console.log(`User ${burnerId} with socket ${client.id} connected`);
+    console.log(`User connected to burner ${burnerId} socket ${client.id}`);
 
     client.join(getBurnerIdSession(burnerId));
 
-    // ✅ NEW: Send current timer state with ownership info immediately upon connection
     const currentState = getTimerState(burnerId);
     if (currentState.remainingTime > 0 || currentState.burnerIsRunning) {
-      console.log(
-        `Sending current timer state to reconnected client:`,
-        currentState,
-      );
       client.emit('timerStateSync', currentState);
     }
   }
 
   handleDisconnect(@ConnectedSocket() client: any) {
-    console.log(
-      `User ${client.handshake.query.burnerId} with socket ${client.id} DISCONNECTED`,
-    );
+    console.log(`Socket Disconnected: ${client.id}`);
   }
 
   @SubscribeMessage('getTimerState')
   handleGetTimerState(@ConnectedSocket() client: any): void {
     const burnerId = client.handshake.query.burnerId.toString();
     const currentState = getTimerState(burnerId);
-
-    console.log(`Timer state requested for ${burnerId}:`, currentState);
-
     client.emit('timerStateSync', currentState);
   }
 
-  // ✅ Helper function to send MQTT commands
-  private sendMqttCommand(burnerId: string, command: 'start' | 'stop') {
-    const burnerNumber = getLastDigitFromString(burnerId);
+  // ✅ DYNAMIC MQTT COMMAND
+  private async sendMqttCommand(burnerId: string, command: 'start' | 'stop') {
+    // 1. Fetch burner with Stove relationship
+    const burner = await this.burnerRepository.findOne({
+        where: { id: burnerId },
+        relations: ['stove']
+    });
+
+    if (!burner || !burner.stove) {
+        console.error(`Cannot send MQTT command: Burner ${burnerId} or Stove not found`);
+        return;
+    }
+
+    const stoveId = burner.stove.stoveId; // e.g. "mega_10009"
+    const burnerPosition = burner.position; // e.g. 1, 2, 3, 4
+
+    // 2. Construct topic based on Stove ID
+    // Publish Topic: "megagas/{stoveId}/kitchen"
+    const topic = `megagas/${stoveId}/kitchen`;
+
+    // 3. Payload: { burner: 1, command: 'start' }
     const message = JSON.stringify({
-      burner: burnerNumber,
+      burner: burnerPosition,
       command: command,
     });
+
     this.mqttService.publish(topic, message);
   }
 
-  // ✅ Helper to get actual burner ID from socket burner ID
-  private async getBurnerIdFromSocketBurnerId(
-    socketBurnerId: string,
-  ): Promise<string | null> {
-    const burnerNumber = getLastDigitFromString(socketBurnerId);
-    if (!burnerNumber) return null;
-
-    const burner = await this.burnerRepository
-      .createQueryBuilder('burner')
-      .where('burner.name LIKE :pattern', { pattern: `%${burnerNumber}%` })
-      .getOne();
-
-    return burner?.id || null;
-  }
-
   @SubscribeMessage(TimerEvents.timerStart.toString())
-  startMyTimer(@ConnectedSocket() client: any, @MessageBody() body: any): void {
+  async startMyTimer(@ConnectedSocket() client: any, @MessageBody() body: any) {
     try {
       const burnerId = client.handshake.query.burnerId.toString();
 
-      // ✅ NEW: Extract ownership information from the request
       const ownershipInfo = {
         userId: body.userIdentifier || body.phone,
         userName: body.userName || 'Unknown User',
@@ -128,19 +118,16 @@ export class SocketsGateway
         sessionId: body.sessionId,
       };
 
-      // ✅ Create MQTT callback for timer completion
+      // Callback when timer naturally finishes (hits 0)
       const mqttCallback = async (bId: string, cmd: string) => {
-        this.sendMqttCommand(bId, cmd as 'start' | 'stop');
+        await this.sendMqttCommand(bId, cmd as 'start' | 'stop');
 
         if (cmd === 'stop') {
-          const actualBurnerId = await this.getBurnerIdFromSocketBurnerId(bId);
-          if (actualBurnerId) {
-            await this.saleTransactionService.deactivateBurner(actualBurnerId);
-          }
+            await this.saleTransactionService.deactivateBurner(bId);
         }
       };
 
-      // ✅ UPDATED: Start a new timer with ownership info
+      // Start the logical timer
       startTimerForBurner(
         this.server,
         burnerId,
@@ -149,7 +136,8 @@ export class SocketsGateway
         ownershipInfo,
       );
 
-      this.sendMqttCommand(burnerId, 'start');
+      // Send immediate hardware start command
+      await this.sendMqttCommand(burnerId, 'start');
 
       client.emit('timerStarted', {
         message: 'Timer successfully started',
@@ -157,6 +145,7 @@ export class SocketsGateway
         ownershipInfo: ownershipInfo,
       });
     } catch (error) {
+      console.error("Error starting timer:", error);
       client.emit('timerError', {
         message: 'Error starting the timer',
         error: error.message,
@@ -168,10 +157,10 @@ export class SocketsGateway
   async stopMyTimer(
     @ConnectedSocket() client: any,
     @MessageBody() body: any,
-  ): Promise<void> {
+  ) {
     const burnerId = client.handshake.query.burnerId.toString();
-
-    // ✅ NEW: Check ownership before allowing stop
+    
+    // Check ownership logic...
     const userIdentifier = body?.userIdentifier || body?.phone;
     const sessionId = body?.sessionId;
 
@@ -185,55 +174,37 @@ export class SocketsGateway
     }
 
     stopTimerForBurner(this.server, burnerId);
-
-    const actualBurnerId = await this.getBurnerIdFromSocketBurnerId(burnerId);
-    if (actualBurnerId) {
-      await this.saleTransactionService.deactivateBurner(actualBurnerId);
-    }
+    
+    // Send immediate hardware stop command
+    await this.sendMqttCommand(burnerId, 'stop');
+    await this.saleTransactionService.deactivateBurner(burnerId);
   }
 
   @SubscribeMessage(TimerEvents.timerPause.toString())
-  pauseMyTimer(@ConnectedSocket() client: any, @MessageBody() body: any): void {
+  async pauseMyTimer(@ConnectedSocket() client: any, @MessageBody() body: any) {
     const burnerId = client.handshake.query.burnerId.toString();
-
-    // ✅ NEW: Check ownership before allowing pause
-    const userIdentifier = body?.userIdentifier || body?.phone;
-    const sessionId = body?.sessionId;
-
-    if (!isTimerOwnedByUser(burnerId, userIdentifier, sessionId)) {
-      client.emit('timerError', {
-        message: 'Access Denied',
-        error: 'You can only pause timers that you created',
-        action: 'pause',
-      });
-      return;
+    
+    if (!isTimerOwnedByUser(burnerId, body?.userIdentifier, body?.sessionId)) {
+        return; 
     }
 
     pauseTimerForBurner(this.server, burnerId);
-    this.sendMqttCommand(burnerId, 'stop');
+    // Pause usually implies stopping the gas flow physically
+    await this.sendMqttCommand(burnerId, 'stop');
   }
 
   @SubscribeMessage(TimerEvents.timerResume.toString())
-  resumeMyTimer(
+  async resumeMyTimer(
     @ConnectedSocket() client: any,
     @MessageBody() body: any,
-  ): void {
+  ) {
     const burnerId = client.handshake.query.burnerId.toString();
 
-    // ✅ NEW: Check ownership before allowing resume
-    const userIdentifier = body?.userIdentifier || body?.phone;
-    const sessionId = body?.sessionId;
-
-    if (!isTimerOwnedByUser(burnerId, userIdentifier, sessionId)) {
-      client.emit('timerError', {
-        message: 'Access Denied',
-        error: 'You can only resume timers that you created',
-        action: 'resume',
-      });
-      return;
+    if (!isTimerOwnedByUser(burnerId, body?.userIdentifier, body?.sessionId)) {
+        return;
     }
 
     resumeTimerForBurner(this.server, burnerId);
-    this.sendMqttCommand(burnerId, 'start');
+    await this.sendMqttCommand(burnerId, 'start');
   }
 }

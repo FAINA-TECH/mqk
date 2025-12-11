@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Burner } from '../kitchen/entities/burner.entity';
 import { SaleTransaction } from '../sale-transaction/entities/sale-transaction.entity';
-import { getTimerState as getPaygoTimerState } from '../sockets/burners';
+import { getTimerState as getSocketTimerState } from '../sockets/burners';
 
 @Injectable()
 export class TimerStateService {
@@ -15,9 +15,9 @@ export class TimerStateService {
   ) {}
 
   async getTimerState(burnerId: string) {
-    // Find the burner
     const burner = await this.burnerRepository.findOne({
       where: { id: burnerId },
+      relations: ['stove']
     });
 
     if (!burner) {
@@ -25,49 +25,26 @@ export class TimerStateService {
     }
 
     if (burner.isConnectedToPaygo) {
-      // For PayGo burners, get state from the socket system
-      const burnerNumber = this.extractBurnerNumber(burner.name);
-      if (burnerNumber) {
-        const paygoDeviceId = `kitchen1burner${burnerNumber}`;
-        return this.getPaygoTimerState(paygoDeviceId);
-      } else {
-        return {
-          burnerId,
-          remainingTime: 0,
-          totalTime: 0,
-          isActive: false,
-          isPaused: false,
-          startedAt: null,
-          customerPhone: null,
-          type: 'paygo',
-          // ✅ NEW: Add ownership info
-          ownedBy: null,
-          ownerName: null,
-          ownerPhone: null,
-        };
-      }
+      // Use socket state
+      // Note: We use burnerId here because the SocketGateway tracks timers by burnerId UUID
+      return this.getPaygoTimerState(burnerId); 
     } else {
-      // For regular burners, check if there's an active sale transaction
       return this.getRegularTimerState(burnerId);
     }
   }
 
-  async getPaygoTimerState(deviceId: string) {
-    // Get timer state from the PayGo socket system
-    const timerState = getPaygoTimerState(deviceId);
-
-    // ✅ NEW: Get ownership info for PayGo timers
+  async getPaygoTimerState(burnerId: string) {
+    // Get timer state from the socket system (in-memory)
+    const timerState = getSocketTimerState(burnerId);
     const ownershipInfo = timerState.ownershipInfo || {};
 
     return {
-      burnerId: deviceId,
+      burnerId: burnerId,
       remainingTime: timerState.remainingTime || 0,
       totalTime: timerState.totalTime || 0,
       isActive: timerState.burnerIsRunning || false,
       isPaused: timerState.burnerIsPaused || false,
       type: 'paygo',
-      deviceId: deviceId,
-      // ✅ NEW: Add ownership info
       ownedBy: ownershipInfo.userId || null,
       ownerName: ownershipInfo.userName || null,
       ownerPhone: ownershipInfo.customerPhone || null,
@@ -76,7 +53,6 @@ export class TimerStateService {
   }
 
   private async getRegularTimerState(burnerId: string) {
-    // For regular burners, check the most recent active transaction
     const activeTransaction = await this.saleTransactionRepository
       .createQueryBuilder('transaction')
       .innerJoin('transaction.burner', 'burner')
@@ -105,7 +81,6 @@ export class TimerStateService {
         customerPhone: activeTransaction.phone,
         transactionId: activeTransaction.transactionId,
         type: 'regular',
-        // ✅ NEW: Add ownership info
         ownedBy: activeTransaction.createdByUserId || null,
         ownerName: activeTransaction.createdByName || null,
         ownerPhone: activeTransaction.phone,
@@ -122,16 +97,10 @@ export class TimerStateService {
       startedAt: null,
       customerPhone: null,
       type: 'regular',
-      // ✅ NEW: Add ownership info
       ownedBy: null,
       ownerName: null,
       ownerPhone: null,
       ownerSessionId: null,
     };
-  }
-
-  private extractBurnerNumber(burnerName: string): number | null {
-    const match = burnerName.match(/\d+/);
-    return match ? parseInt(match[0], 10) : null;
   }
 }

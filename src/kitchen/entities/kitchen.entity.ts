@@ -1,4 +1,3 @@
-// src/kitchen/entities/kitchen.entity.ts
 import {
   Column,
   Entity,
@@ -7,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
-import { Burner } from './burner.entity';
+import { Stove } from './stove.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
 @Entity()
@@ -36,6 +35,6 @@ export class Kitchen {
   @ManyToOne(() => User, (user) => user.kitchens)
   worker: User;
 
-  @OneToMany(() => Burner, (burner) => burner.kitchen, { cascade: true })
-  burners: Burner[];
+  @OneToMany(() => Stove, (stove) => stove.kitchen, { cascade: true })
+  stoves: Stove[];
 }

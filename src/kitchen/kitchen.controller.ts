@@ -1,4 +1,3 @@
-// src/kitchen/kitchen.controller.ts
 import {
   Controller,
   Get,
@@ -10,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { KitchenService } from './kitchen.service';
 import { CreateKitchenDto } from './dto/create-kitchen.dto';
+import { CreateStoveDto } from './dto/create-stove.dto';
 import { CreateBurnerDto } from './dto/create-burner.dto';
 import { AssignWorkerDto } from './dto/assign-worker.dto';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -19,34 +19,11 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 export class KitchenController {
   constructor(private readonly kitchenService: KitchenService) {}
 
+  // Kitchens
   @Post()
   @ApiOperation({ summary: 'Create a new kitchen' })
   createKitchen(@Body() createKitchenDto: CreateKitchenDto) {
     return this.kitchenService.createKitchen(createKitchenDto);
-  }
-
-  @Put(':id/worker')
-  @ApiOperation({ summary: 'Assign a worker a kitchen' })
-  assignWorker(
-    @Param('id') id: string,
-    @Body() assignWorkerDto: AssignWorkerDto,
-  ) {
-    return this.kitchenService.assignWorker(
-      id,
-      assignWorkerDto.workerNationalId,
-    );
-  }
-
-  @Delete(':id/worker')
-  @ApiOperation({ summary: 'Unassign worker from a kitchen' })
-  unassignWorker(@Param('id') id: string) {
-    return this.kitchenService.assignWorker(id, null);
-  }
-
-  @Post('burner')
-  @ApiOperation({ summary: 'Create a new burner' })
-  createBurner(@Body() createBurnerDto: CreateBurnerDto) {
-    return this.kitchenService.createBurner(createBurnerDto);
   }
 
   @Get()
@@ -55,16 +32,39 @@ export class KitchenController {
     return this.kitchenService.findAllKitchens();
   }
 
-  @Get('worker/:nationalId')
-  @ApiOperation({ summary: 'Get kitchens by worker national ID' })
-  findKitchensByWorker(@Param('nationalId') nationalId: string) {
-    return this.kitchenService.findKitchensByWorker(nationalId);
-  }
-
   @Get(':id')
   @ApiOperation({ summary: 'Get a kitchen by ID' })
   findKitchenById(@Param('id') id: string) {
     return this.kitchenService.findKitchenById(id);
+  }
+
+  @Put(':id/worker')
+  @ApiOperation({ summary: 'Assign a worker a kitchen' })
+  assignWorker(
+    @Param('id') id: string,
+    @Body() assignWorkerDto: AssignWorkerDto,
+  ) {
+    return this.kitchenService.assignWorker(id, assignWorkerDto.workerNationalId);
+  }
+
+  // Stoves
+  @Post('stove')
+  @ApiOperation({ summary: 'Create a new stove' })
+  createStove(@Body() createStoveDto: CreateStoveDto) {
+    return this.kitchenService.createStove(createStoveDto);
+  }
+
+  @Get('stove/all')
+  @ApiOperation({ summary: 'Get all stoves' })
+  findAllStoves() {
+    return this.kitchenService.findAllStoves();
+  }
+
+  // Burners
+  @Post('burner')
+  @ApiOperation({ summary: 'Create a new burner for a stove' })
+  createBurner(@Body() createBurnerDto: CreateBurnerDto) {
+    return this.kitchenService.createBurner(createBurnerDto);
   }
 
   @Get('burner/:id')
@@ -73,32 +73,9 @@ export class KitchenController {
     return this.kitchenService.findBurnerById(id);
   }
 
-  @Put(':id')
-  @ApiOperation({ summary: 'Update a kitchen by ID' })
-  updateKitchen(@Param('id') id: string, @Body() updateKitchenDto: any) {
-    return this.kitchenService.updateKitchen(id, updateKitchenDto);
-  }
-
-  @Put('burner/:id')
-  @ApiOperation({ summary: 'Update a burner by ID' })
-  updateBurner(@Param('id') id: string, @Body() updateBurnerDto: any) {
-    return this.kitchenService.updateBurner(id, updateBurnerDto);
-  }
-  @Get(':id/burners')
-  @ApiOperation({ summary: 'Get all burners for a specific kitchen' })
-  findBurnersByKitchen(@Param('id') id: string) {
-    return this.kitchenService.findBurnersByKitchenId(id);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete a kitchen by ID' })
-  removeKitchen(@Param('id') id: string) {
-    return this.kitchenService.removeKitchen(id);
-  }
-
-  @Delete('burner/:id')
-  @ApiOperation({ summary: 'Delete a burner by ID' })
-  removeBurner(@Param('id') id: string) {
-    return this.kitchenService.removeBurner(id);
+  @Get('worker/:nationalId')
+  @ApiOperation({ summary: 'Get kitchens by worker national ID' })
+  findKitchensByWorker(@Param('nationalId') nationalId: string) {
+    return this.kitchenService.findKitchensByWorker(nationalId);
   }
 }

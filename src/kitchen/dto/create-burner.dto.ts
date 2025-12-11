@@ -1,21 +1,32 @@
-// src/kitchen/dto/create-burner.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsBoolean,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
+  Min,
 } from 'class-validator';
 
 export class CreateBurnerDto {
   @IsString()
   @IsNotEmpty()
   @ApiProperty({
-    description: 'Name or number of the burner',
+    description: 'Name of the burner',
     example: 'Burner 1',
   })
   name: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(4)
+  @ApiProperty({
+    description: 'Physical position (1-4)',
+    example: 1,
+  })
+  position: number;
 
   @IsNumber()
   @ApiProperty({
@@ -43,8 +54,8 @@ export class CreateBurnerDto {
   @IsString()
   @IsNotEmpty()
   @ApiProperty({
-    description: 'ID of the kitchen this burner belongs to',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'ID of the stove this burner belongs to',
+    example: 'stove-uuid-123',
   })
-  kitchenId: string;
+  stoveId: string;
 }

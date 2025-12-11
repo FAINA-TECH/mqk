@@ -1,6 +1,5 @@
-// src/kitchen/entities/burner.entity.ts
 import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { Kitchen } from './kitchen.entity';
+import { Stove } from './stove.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
 @Entity()
@@ -18,6 +17,13 @@ export class Burner {
     example: 'Burner 1',
   })
   name: string;
+
+  @Column({ type: 'int', default: 1 })
+  @ApiProperty({
+    description: 'Physical position on the stove (1, 2, 3, or 4)',
+    example: 1,
+  })
+  position: number;
 
   @Column({ default: false })
   @ApiProperty({
@@ -47,6 +53,6 @@ export class Burner {
   })
   isConnectedToPaygo: boolean;
 
-  @ManyToOne(() => Kitchen, (kitchen) => kitchen.burners)
-  kitchen: Kitchen;
+  @ManyToOne(() => Stove, (stove) => stove.burners, { onDelete: 'CASCADE' })
+  stove: Stove;
 }

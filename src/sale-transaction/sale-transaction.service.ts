@@ -1,5 +1,3 @@
-// src/sale-transaction/sale-transaction.service.ts
-
 import {
   Injectable,
   NotFoundException,
@@ -14,7 +12,6 @@ import { TimerStateService } from '../timer-state/timer-state.service';
 
 @Injectable()
 export class SaleTransactionService {
-  // ✅ Store active timers to cancel them if needed
   private activeTimers: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(
@@ -34,74 +31,58 @@ export class SaleTransactionService {
       ...rest
     } = createSaleTransactionDto;
 
-    // Find the burner
+    // Find the burner with relations for logging context
     const burner = await this.burnerRepository.findOne({
       where: { id: burnerId },
+      relations: ['stove', 'stove.kitchen'],
     });
 
     if (!burner) {
       throw new NotFoundException(`Burner with ID ${burnerId} not found`);
     }
 
-    // ✅ NEW: Check if there's already an active timer on this burner
     const currentTimerState =
       await this.timerStateService.getTimerState(burnerId);
 
     if (currentTimerState.isActive && currentTimerState.remainingTime > 0) {
       throw new ConflictException(
-        `Cannot create sale: ${burner.name} already has an active timer with ${Math.ceil(currentTimerState.remainingTime / 60)} minutes remaining. Please wait for the current timer to complete or stop it first.`,
+        `Cannot create sale: ${burner.name} (Stove: ${burner.stove?.name}) is already active.`,
       );
     }
 
-    // Set burner to active
     burner.isActive = true;
     await this.burnerRepository.save(burner);
 
-    // Use provided amount or calculate based on duration and rates
     let amount: number;
-
     if (providedAmount !== undefined) {
       amount = providedAmount;
     } else {
       const hours = Math.floor(rest.durationMinutes / 60);
       const remainingMinutes = rest.durationMinutes % 60;
-
       amount = 0;
-      if (hours > 0) {
-        amount += hours * burner.hourlyRate;
-      }
-      if (remainingMinutes > 0) {
-        amount += burner.partialRate;
-      }
+      if (hours > 0) amount += hours * burner.hourlyRate;
+      if (remainingMinutes > 0) amount += burner.partialRate;
     }
 
-    // Create and save the transaction
     const transaction = this.saleTransactionRepository.create({
       ...rest,
       burner,
       amount,
     });
 
-    const savedTransaction =
-      await this.saleTransactionRepository.save(transaction);
-
-    console.log(
-      `Sale transaction created for ${burner.name} - Timer will be managed by socket/local system`,
-    );
-
-    return savedTransaction;
+    return this.saleTransactionRepository.save(transaction);
   }
 
   async findAll(): Promise<SaleTransaction[]> {
     return this.saleTransactionRepository.find({
-      relations: ['burner', 'burner.kitchen'],
+      relations: ['burner', 'burner.stove', 'burner.stove.kitchen'],
     });
   }
 
   async findOne(id: string): Promise<SaleTransaction> {
     const transaction = await this.saleTransactionRepository.findOne({
       where: { transactionId: id },
-      relations: ['burner', 'burner.kitchen'],
+      relations: ['burner', 'burner.stove', 'burner.stove.kitchen'],
     });
 
     if (!transaction) {
@@ -111,7 +92,6 @@ export class SaleTransactionService {
     return transaction;
   }
 
-  // ✅ NEW: Deactivate burner (called from socket gateway when timer completes)
   async deactivateBurner(burnerId: string): Promise<void> {
     try {
       const burner = await this.burnerRepository.findOne({
@@ -121,14 +101,13 @@ export class SaleTransactionService {
       if (burner) {
         burner.isActive = false;
         await this.burnerRepository.save(burner);
-        console.log(`Burner ${burnerId} deactivated by timer completion`);
+        console.log(`Burner ${burnerId} deactivated`);
       }
     } catch (error) {
       console.error(`Error deactivating burner ${burnerId}:`, error);
     }
   }
 
-  // ✅ NEW: Cancel any scheduled deactivation
   cancelDeactivation(burnerId: string): void {
     const timer = this.activeTimers.get(burnerId);
     if (timer) {
@@ -138,7 +117,6 @@ export class SaleTransactionService {
     }
   }
 
-  // ✅ NEW: Check if burner has active timer
   async hasActiveTimer(burnerId: string): Promise<boolean> {
     const timerState = await this.timerStateService.getTimerState(burnerId);
     return timerState.isActive && timerState.remainingTime > 0;

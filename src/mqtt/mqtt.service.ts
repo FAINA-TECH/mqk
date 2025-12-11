@@ -1,15 +1,15 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
-import { connect } from 'mqtt';
+import { connect, MqttClient } from 'mqtt';
 
 @Injectable()
 export class MqttService implements OnModuleInit {
   private readonly logger = new Logger(MqttService.name);
-  private mqttClient;
+  private mqttClient: MqttClient;
 
   onModuleInit() {
     const host = '152.42.139.67';
     const port = 18100;
-    const clientId = 'mega_WS_10001';
+    const clientId = 'mega_backend_server'; // Distinct client ID
 
     const connectUrl = `mqtt://${host}:${port}`;
 
@@ -26,10 +26,15 @@ export class MqttService implements OnModuleInit {
       this.logger.log('✅ Connected to MQTT Broker Server');
       this.logger.log(`Connected to: ${connectUrl}`);
 
-      // Test subscription to verify connectivity
-      this.mqttClient.subscribe('test/connection', (err) => {
-        if (!err) {
-          this.logger.log('Successfully subscribed to test topic');
+      // Subscribe to ALL kitchen status updates using wildcard
+      // Topic structure: megagas/{stoveId}/kitchenStatus
+      const wildcardTopic = 'megagas/+/kitchenStatus';
+      
+      this.mqttClient.subscribe(wildcardTopic, (err) => {
+        if (err) {
+          this.logger.error(`Failed to subscribe to ${wildcardTopic}`, err);
+        } else {
+          this.logger.log(`Subscribed to ${wildcardTopic}`);
         }
       });
     });
@@ -38,20 +43,10 @@ export class MqttService implements OnModuleInit {
       this.logger.error('❌ Error connecting to MQTT Broker Server', error);
     });
 
-    this.mqttClient.on('disconnect', () => {
-      this.logger.warn('🔌 Disconnected from MQTT Broker');
-    });
-
-    this.mqttClient.on('reconnect', () => {
-      this.logger.log('🔄 Attempting to reconnect to MQTT Broker');
-    });
-
-    this.mqttClient.on('offline', () => {
-      this.logger.warn('📵 MQTT Client is offline');
-    });
-
     this.mqttClient.on('message', (topic, message) => {
       this.logger.log(`📨 Received message on ${topic}: ${message.toString()}`);
+      // Here you could add logic to parse status updates from stoves
+      // e.g., if a stove reports a fault or confirms a valve state
     });
   }
 
@@ -66,7 +61,7 @@ export class MqttService implements OnModuleInit {
     return `Publishing to ${topic}`;
   }
 
-  // Add a method to test connectivity
+  // ✅ ADDED BACK: Test connection method
   testConnection(): string {
     if (this.mqttClient && this.mqttClient.connected) {
       this.publish(
@@ -81,14 +76,13 @@ export class MqttService implements OnModuleInit {
     return 'MQTT client is not connected';
   }
 
-  // Get connection status
   getConnectionStatus(): { connected: boolean; clientId: string } {
     return {
       connected: this.mqttClient ? this.mqttClient.connected : false,
-      clientId: 'mega_WS_10001',
+      clientId: this.mqttClient?.options?.clientId || 'unknown',
     };
   }
-  // Add this method to your MqttService
+
   getBrokerInfo(): any {
     if (!this.mqttClient || !this.mqttClient.connected) {
       return { error: 'MQTT client is not connected' };
@@ -104,8 +98,6 @@ export class MqttService implements OnModuleInit {
       '$SYS/broker/messages/received',
       '$SYS/broker/messages/sent',
     ];
-
-    // const brokerInfo = {};
 
     systemTopics.forEach((topic) => {
       this.mqttClient.subscribe(topic, (err) => {

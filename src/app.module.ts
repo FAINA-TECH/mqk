@@ -9,8 +9,9 @@ import { SocketsGateway } from './sockets/sockets.gateway';
 import { MqttService } from './mqtt/mqtt.service';
 import { SaleTransactionModule } from './sale-transaction/sales-transaction.module';
 import { ReportsModule } from './reports/reports.module';
-import { Burner } from './kitchen/entities/burner.entity'; // ✅ Import Burner entity
 import { TimerStateModule } from './timer-state/timer-state.module';
+import { Burner } from './kitchen/entities/burner.entity';
+import { Stove } from './kitchen/entities/stove.entity';
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { TimerStateModule } from './timer-state/timer-state.module';
         rejectUnauthorized: false,
       },
     }),
-    TypeOrmModule.forFeature([Burner]), // ✅ Add this line
+    TypeOrmModule.forFeature([Burner, Stove]),
   ],
   controllers: [AppController],
   providers: [AppService, SocketsGateway, MqttService],
