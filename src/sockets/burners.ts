@@ -1,7 +1,9 @@
-// src/sockets/burners.ts
 import { TimerEvents } from './events';
 
 const userTimers = {}; // Keeps track of all timers, structured per burnerId.
+// ✅ NEW: Keep track of recently completed timers to prevent immediate re-creation
+const recentlyCompletedTimers = new Map(); // burnerId -> { completedAt, ownershipInfo }
+const COMPLETION_COOLDOWN = 30 * 1000; // 30 seconds cooldown after completion
 
 function createTimer(burnerId, totalTime, ownershipInfo = null) {
   return {
@@ -39,6 +41,12 @@ export function startTimerForBurner(
   mqttCallback = null,
   ownershipInfo = null,
 ) {
+  // Clear any recently completed timer record when starting a new one
+  if (recentlyCompletedTimers.has(burnerId)) {
+    recentlyCompletedTimers.delete(burnerId);
+    console.log(`Cleared recently completed timer record for ${burnerId}`);
+  }
+
   if (userTimers[burnerId]) {
     const timer = userTimers[burnerId];
     if (timer.burnerIsRunning) {
@@ -97,6 +105,22 @@ export function stopTimerForBurner(server, burnerId, isTimeout = false) {
   }
 
   clearInterval(timer.intervalId);
+
+  // ✅ NEW: Store recently completed timer info for cooldown period
+  if (isTimeout) {
+    recentlyCompletedTimers.set(burnerId, {
+      completedAt: Date.now(),
+      ownershipInfo: timer.ownershipInfo,
+    });
+    
+    // Auto-cleanup after cooldown period
+    setTimeout(() => {
+      if (recentlyCompletedTimers.has(burnerId)) {
+        recentlyCompletedTimers.delete(burnerId);
+        console.log(`Cleaned up recently completed timer record for ${burnerId}`);
+      }
+    }, COMPLETION_COOLDOWN);
+  }
 
   // ✅ Call MQTT callback if it exists
   if (timer.mqttCallback && typeof timer.mqttCallback === 'function') {
@@ -194,6 +218,37 @@ export function getTimerState(burnerId) {
     // ✅ NEW: Include ownership info
     ownershipInfo: timer.ownershipInfo || {},
   };
+}
+
+// ✅ NEW: Get recently completed timer info
+export function getRecentlyCompletedTimer(burnerId) {
+  const completed = recentlyCompletedTimers.get(burnerId);
+  if (!completed) return null;
+
+  // Check if still within cooldown period
+  const now = Date.now();
+  if (now - completed.completedAt > COMPLETION_COOLDOWN) {
+    recentlyCompletedTimers.delete(burnerId);
+    return null;
+  }
+
+  return completed;
+}
+
+// ✅ NEW: Check if burner is in cooldown period
+export function isBurnerInCooldown(burnerId) {
+  const completed = getRecentlyCompletedTimer(burnerId);
+  return !!completed;
+}
+
+// ✅ NEW: Get cooldown remaining time in seconds
+export function getCooldownRemaining(burnerId) {
+  const completed = getRecentlyCompletedTimer(burnerId);
+  if (!completed) return 0;
+
+  const elapsed = Date.now() - completed.completedAt;
+  const remaining = COMPLETION_COOLDOWN - elapsed;
+  return Math.max(0, Math.ceil(remaining / 1000));
 }
 
 // ✅ NEW: Check if user owns the timer
