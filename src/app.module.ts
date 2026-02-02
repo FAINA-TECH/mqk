@@ -27,9 +27,10 @@ import { Stove } from './kitchen/entities/stove.entity';
       // devurl: 'postgres://postgres:PqEZUcERaYJ0lPYYEyTykE5p9s99Z9xmYNWeVNRTauhI2uNoL9tPhTezvPbvIxOL@185.225.232.140:5436/postgres',
       autoLoadEntities: true,
       synchronize: true,
-      ssl: {
-        rejectUnauthorized: false,
-      },
+      // ssl: false,
+      // ssl: {
+      //   rejectUnauthorized: false,
+      // },
     }),
     TypeOrmModule.forFeature([Burner, Stove]),
   ],
