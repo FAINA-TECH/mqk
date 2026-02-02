@@ -23,7 +23,8 @@ import { Stove } from './kitchen/entities/stove.entity';
     ReportsModule,
     TypeOrmModule.forRoot({
       type: 'postgres',
-      url: 'postgresql://neondb_owner:npg_era1mIQuSNv9@ep-plain-voice-a23e540q-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
+      url: 'postgres://postgres:PqEZUcERaYJ0lPYYEyTykE5p9s99Z9xmYNWeVNRTauhI2uNoL9tPhTezvPbvIxOL@kwcsowsgc4w8sowcsgsko08k:5432/postgres',
+      // devurl: 'postgres://postgres:PqEZUcERaYJ0lPYYEyTykE5p9s99Z9xmYNWeVNRTauhI2uNoL9tPhTezvPbvIxOL@185.225.232.140:5436/postgres',
       autoLoadEntities: true,
       synchronize: true,
       ssl: {
