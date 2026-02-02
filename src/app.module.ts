@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SalesModule } from './sales/sales.module';
@@ -15,6 +16,9 @@ import { Stove } from './kitchen/entities/stove.entity';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     UserModule,
     KitchenModule,
     TimerStateModule,
@@ -23,14 +27,13 @@ import { Stove } from './kitchen/entities/stove.entity';
     ReportsModule,
     TypeOrmModule.forRoot({
       type: 'postgres',
-      url: 'postgres://postgres:PqEZUcERaYJ0lPYYEyTykE5p9s99Z9xmYNWeVNRTauhI2uNoL9tPhTezvPbvIxOL@kwcsowsgc4w8sowcsgsko08k:5432/postgres',
-      // devurl: 'postgres://postgres:PqEZUcERaYJ0lPYYEyTykE5p9s99Z9xmYNWeVNRTauhI2uNoL9tPhTezvPbvIxOL@185.225.232.140:5436/postgres',
+      url: process.env.DATABASE_URL,
       autoLoadEntities: true,
       synchronize: true,
-      // ssl: false,
-      // ssl: {
-      //   rejectUnauthorized: false,
-      // },
+      ssl:
+        process.env.DATABASE_SSL === 'true'
+          ? { rejectUnauthorized: false }
+          : false,
     }),
     TypeOrmModule.forFeature([Burner, Stove]),
   ],
