@@ -353,6 +353,12 @@ export class ScriptedSaleService {
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
+    const kitchen = await this.kitchenRepository.findOne({
+      where: { id: kitchenId },
+    });
+
+    const kitchenName = kitchen?.name ?? kitchenId;
+
     const transactions = await this.scriptedRepo
       .createQueryBuilder('tx')
       .leftJoinAndSelect('tx.burner', 'burner')
@@ -433,7 +439,6 @@ export class ScriptedSaleService {
         t.durationMinutes,
       );
 
-      // Always collect — we'll strip them out if showTransactions is false
       grouped[dateKey].burners[burnerId].transactions.push({
         id: t.id,
         transactionDate: t.transactionDate,
@@ -460,7 +465,6 @@ export class ScriptedSaleService {
             totalSales: b.totalSales,
             totalAmount: b.totalAmount,
             totalCookingHours: (b.totalMinutes / 60).toFixed(2),
-            // Only include transactions array when explicitly requested
             ...(showTransactions && {
               transactions: b.transactions.sort(
                 (a, b) =>
@@ -473,6 +477,7 @@ export class ScriptedSaleService {
 
     return {
       kitchenId,
+      kitchenName,
       dateRange: { startDate: start, endDate: end },
       summary: {
         totalSales: transactions.length,
