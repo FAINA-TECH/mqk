@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Kitchen } from '../kitchen/entities/kitchen.entity';
 import { Burner } from '../kitchen/entities/burner.entity';
 import { User } from '../user/entities/user.entity';
@@ -27,7 +27,6 @@ export class ReportsService {
     return { start, end };
   }
 
-  // Helper: group transactions by date (YYYY-MM-DD)
   private groupTransactionsByDate(transactions: SaleTransaction[]) {
     const grouped: Record<
       string,
@@ -56,7 +55,6 @@ export class ReportsService {
       grouped[dateKey].transactions.push(t);
     }
 
-    // Compute cooking hours per day
     for (const dateKey in grouped) {
       const totalMinutes = grouped[dateKey].transactions.reduce(
         (sum, t) => sum + Number(t.durationMinutes),
@@ -65,7 +63,6 @@ export class ReportsService {
       grouped[dateKey].totalCookingHours = (totalMinutes / 60).toFixed(2);
     }
 
-    // Return as sorted array
     return Object.entries(grouped)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, data]) => ({ date, ...data }));
@@ -88,19 +85,32 @@ export class ReportsService {
 
     const kitchenIds = worker.kitchens.map((k) => k.id);
 
-    const transactions = await this.saleTransactionRepository.find({
-      where: {
-        burner: {
-          stove: {
-            kitchen: {
-              id: In(kitchenIds),
-            },
-          },
-        },
-        createdAt: Between(start, end),
-      },
-      relations: ['burner', 'burner.stove', 'burner.stove.kitchen'],
-    });
+    const transactions = await this.saleTransactionRepository
+      .createQueryBuilder('transaction')
+      .leftJoin('transaction.burner', 'burner')
+      .leftJoin('burner.stove', 'stove')
+      .leftJoin('stove.kitchen', 'kitchen')
+      .select([
+        'transaction.transactionId',
+        'transaction.amount',
+        'transaction.durationMinutes',
+        'transaction.phone',
+        'transaction.paymentMethod',
+        'transaction.runtype',
+        'transaction.createdByName',
+        'transaction.createdAt',
+        'burner.id',
+        'burner.name',
+        'burner.position',
+        'stove.id',
+        'stove.name',
+        'kitchen.id',
+        'kitchen.name',
+      ])
+      .where('kitchen.id IN (:...kitchenIds)', { kitchenIds })
+      .andWhere('transaction.createdAt BETWEEN :start AND :end', { start, end })
+      .orderBy('transaction.createdAt', 'ASC')
+      .getMany();
 
     const totalTransactions = transactions.length;
     const totalAmount = transactions.reduce(
@@ -120,10 +130,11 @@ export class ReportsService {
         totalAmount,
         totalCookingHours: (totalMinutes / 60).toFixed(2),
       },
+      dailySales: this.groupTransactionsByDate(transactions),
     };
   }
 
-  // 2. Kitchen Report — with daily breakdown
+  // 2. Kitchen Report
   async getKitchenReport(
     kitchenId: string,
     startDate: string,
@@ -138,18 +149,30 @@ export class ReportsService {
 
     if (!kitchen) return { error: 'Kitchen not found' };
 
-    const transactions = await this.saleTransactionRepository.find({
-      where: {
-        burner: {
-          stove: {
-            kitchen: { id: kitchenId },
-          },
-        },
-        createdAt: Between(start, end),
-      },
-      relations: ['burner', 'burner.stove'],
-      order: { createdAt: 'ASC' },
-    });
+    const transactions = await this.saleTransactionRepository
+      .createQueryBuilder('transaction')
+      .leftJoin('transaction.burner', 'burner')
+      .leftJoin('burner.stove', 'stove')
+      .leftJoin('stove.kitchen', 'kitchen')
+      .select([
+        'transaction.transactionId',
+        'transaction.amount',
+        'transaction.durationMinutes',
+        'transaction.phone',
+        'transaction.paymentMethod',
+        'transaction.runtype',
+        'transaction.createdByName',
+        'transaction.createdAt',
+        'burner.id',
+        'burner.name',
+        'burner.position',
+        'stove.id',
+        'stove.name',
+      ])
+      .where('kitchen.id = :kitchenId', { kitchenId })
+      .andWhere('transaction.createdAt BETWEEN :start AND :end', { start, end })
+      .orderBy('transaction.createdAt', 'ASC')
+      .getMany();
 
     const totalTransactions = transactions.length;
     const totalAmount = transactions.reduce(
@@ -161,18 +184,19 @@ export class ReportsService {
       0,
     );
 
-    // Daily breakdown
-    const dailySales = this.groupTransactionsByDate(transactions);
-
     return {
-      kitchen: { id: kitchen.id, name: kitchen.name },
+      kitchen: {
+        id: kitchen.id,
+        name: kitchen.name,
+        location: kitchen.location,
+      },
       dateRange: { startDate: start, endDate: end },
       summary: {
         totalSales: totalTransactions,
         totalAmount,
         totalCookingHours: (totalMinutes / 60).toFixed(2),
       },
-      dailySales, // <-- per-day breakdown
+      dailySales: this.groupTransactionsByDate(transactions),
     };
   }
 
@@ -187,27 +211,99 @@ export class ReportsService {
 
     if (!burner) return { error: 'Burner not found' };
 
-    const transactions = await this.saleTransactionRepository.find({
-      where: {
-        burner: { id: burnerId },
-        createdAt: Between(start, end),
-      },
-      order: { createdAt: 'ASC' },
-    });
+    const transactions = await this.saleTransactionRepository
+      .createQueryBuilder('transaction')
+      .leftJoin('transaction.burner', 'burner')
+      .select([
+        'transaction.transactionId',
+        'transaction.amount',
+        'transaction.durationMinutes',
+        'transaction.phone',
+        'transaction.paymentMethod',
+        'transaction.runtype',
+        'transaction.createdByName',
+        'transaction.createdAt',
+      ])
+      .where('burner.id = :burnerId', { burnerId })
+      .andWhere('transaction.createdAt BETWEEN :start AND :end', { start, end })
+      .orderBy('transaction.createdAt', 'ASC')
+      .getMany();
+
+    const totalTransactions = transactions.length;
+    const totalAmount = transactions.reduce(
+      (sum, t) => sum + Number(t.amount),
+      0,
+    );
+    const totalMinutes = transactions.reduce(
+      (sum, t) => sum + Number(t.durationMinutes),
+      0,
+    );
 
     return {
       burner: {
+        id: burner.id,
         name: burner.name,
+        position: burner.position,
         stove: burner.stove.name,
         kitchen: burner.stove.kitchen.name,
       },
-      transactions,
+      dateRange: { startDate: start, endDate: end },
+      summary: {
+        totalSales: totalTransactions,
+        totalAmount,
+        totalCookingHours: (totalMinutes / 60).toFixed(2),
+      },
+      dailySales: this.groupTransactionsByDate(transactions),
     };
   }
 
   async getOverallReport(startDate: string, endDate: string) {
     const { start, end } = this.getDateRange(startDate, endDate);
-    return { message: 'Overall report pending implementation with new schema' };
+
+    const transactions = await this.saleTransactionRepository
+      .createQueryBuilder('transaction')
+      .leftJoin('transaction.burner', 'burner')
+      .leftJoin('burner.stove', 'stove')
+      .leftJoin('stove.kitchen', 'kitchen')
+      .select([
+        'transaction.transactionId',
+        'transaction.amount',
+        'transaction.durationMinutes',
+        'transaction.phone',
+        'transaction.paymentMethod',
+        'transaction.runtype',
+        'transaction.createdByName',
+        'transaction.createdAt',
+        'burner.id',
+        'burner.name',
+        'stove.id',
+        'stove.name',
+        'kitchen.id',
+        'kitchen.name',
+      ])
+      .where('transaction.createdAt BETWEEN :start AND :end', { start, end })
+      .orderBy('transaction.createdAt', 'ASC')
+      .getMany();
+
+    const totalTransactions = transactions.length;
+    const totalAmount = transactions.reduce(
+      (sum, t) => sum + Number(t.amount),
+      0,
+    );
+    const totalMinutes = transactions.reduce(
+      (sum, t) => sum + Number(t.durationMinutes),
+      0,
+    );
+
+    return {
+      dateRange: { startDate: start, endDate: end },
+      summary: {
+        totalSales: totalTransactions,
+        totalAmount,
+        totalCookingHours: (totalMinutes / 60).toFixed(2),
+      },
+      dailySales: this.groupTransactionsByDate(transactions),
+    };
   }
 
   async getMultipleBurnersReport(
@@ -215,8 +311,51 @@ export class ReportsService {
     startDate: string,
     endDate: string,
   ) {
+    const { start, end } = this.getDateRange(startDate, endDate);
+
+    const transactions = await this.saleTransactionRepository
+      .createQueryBuilder('transaction')
+      .leftJoin('transaction.burner', 'burner')
+      .leftJoin('burner.stove', 'stove')
+      .select([
+        'transaction.transactionId',
+        'transaction.amount',
+        'transaction.durationMinutes',
+        'transaction.phone',
+        'transaction.paymentMethod',
+        'transaction.runtype',
+        'transaction.createdByName',
+        'transaction.createdAt',
+        'burner.id',
+        'burner.name',
+        'burner.position',
+        'stove.id',
+        'stove.name',
+      ])
+      .where('burner.id IN (:...burnerIds)', { burnerIds })
+      .andWhere('transaction.createdAt BETWEEN :start AND :end', { start, end })
+      .orderBy('transaction.createdAt', 'ASC')
+      .getMany();
+
+    const totalTransactions = transactions.length;
+    const totalAmount = transactions.reduce(
+      (sum, t) => sum + Number(t.amount),
+      0,
+    );
+    const totalMinutes = transactions.reduce(
+      (sum, t) => sum + Number(t.durationMinutes),
+      0,
+    );
+
     return {
-      message: 'Multiple burners report pending implementation with new schema',
+      burnerIds,
+      dateRange: { startDate: start, endDate: end },
+      summary: {
+        totalSales: totalTransactions,
+        totalAmount,
+        totalCookingHours: (totalMinutes / 60).toFixed(2),
+      },
+      dailySales: this.groupTransactionsByDate(transactions),
     };
   }
 }

@@ -1,6 +1,7 @@
 import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Stove } from './stove.entity';
 import { ApiProperty } from '@nestjs/swagger';
+import { Exclude } from 'class-transformer';
 
 @Entity()
 export class Burner {
@@ -54,5 +55,6 @@ export class Burner {
   isConnectedToPaygo: boolean;
 
   @ManyToOne(() => Stove, (stove) => stove.burners, { onDelete: 'CASCADE' })
+  @Exclude()
   stove: Stove;
 }

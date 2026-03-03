@@ -8,6 +8,7 @@ import {
 import { User } from '../../user/entities/user.entity';
 import { Stove } from './stove.entity';
 import { ApiProperty } from '@nestjs/swagger';
+import { Exclude } from 'class-transformer';
 
 @Entity()
 export class Kitchen {
@@ -33,8 +34,10 @@ export class Kitchen {
   location: string;
 
   @ManyToOne(() => User, (user) => user.kitchens)
+  @Exclude()
   worker: User;
 
   @OneToMany(() => Stove, (stove) => stove.kitchen, { cascade: true })
+  @Exclude()
   stoves: Stove[];
 }

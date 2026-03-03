@@ -8,6 +8,7 @@ import {
 import { Kitchen } from './kitchen.entity';
 import { Burner } from './burner.entity';
 import { ApiProperty } from '@nestjs/swagger';
+import { Exclude } from 'class-transformer';
 
 @Entity()
 export class Stove {
@@ -32,9 +33,13 @@ export class Stove {
   })
   name: string;
 
-  @ManyToOne(() => Kitchen, (kitchen) => kitchen.stoves, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Kitchen, (kitchen) => kitchen.stoves, {
+    onDelete: 'CASCADE',
+  })
+  @Exclude()
   kitchen: Kitchen;
 
   @OneToMany(() => Burner, (burner) => burner.stove, { cascade: true })
+  @Exclude()
   burners: Burner[];
 }

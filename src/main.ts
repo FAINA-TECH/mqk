@@ -1,14 +1,16 @@
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { ValidationPipe } from '@nestjs/common';
+import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.useGlobalPipes(new ValidationPipe());
 
-  // ✅ FIXED: Added X-User-Identifier to allowedHeaders
+  // ClassSerializerInterceptor makes @Exclude() work on entities
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+
   app.enableCors({
     origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
@@ -22,7 +24,7 @@ async function bootstrap() {
       'Accept',
       'Origin',
     ],
-    exposedHeaders: ['X-Session-Id', 'X-User-Identifier'], // if  need to read these from responses
+    exposedHeaders: ['X-Session-Id', 'X-User-Identifier'],
   });
 
   const config = new DocumentBuilder()
