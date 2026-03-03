@@ -1,6 +1,5 @@
-// src/user/dto/create-user.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { UserRole, UserStatus } from '../entities/user.entity';
 
 export class CreateUserDto {
@@ -27,6 +26,15 @@ export class CreateUserDto {
     example: 'password123',
   })
   password: string;
+
+  @IsString()
+  @IsOptional()
+  @ApiProperty({
+    description: 'Phone number of the user',
+    example: '+254712345678',
+    required: false,
+  })
+  phone?: string;
 
   @IsEnum(UserRole)
   @ApiProperty({

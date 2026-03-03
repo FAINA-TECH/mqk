@@ -21,6 +21,15 @@ export class UpdateUserDto {
   })
   password?: string;
 
+  @IsString()
+  @IsOptional()
+  @ApiProperty({
+    description: 'Phone number of the user',
+    example: '+254712345678',
+    required: false,
+  })
+  phone?: string;
+
   @IsEnum(UserRole)
   @IsOptional()
   @ApiProperty({
