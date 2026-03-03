@@ -27,8 +27,56 @@ export class ReportsService {
     return { start, end };
   }
 
+  // Helper: group transactions by date (YYYY-MM-DD)
+  private groupTransactionsByDate(transactions: SaleTransaction[]) {
+    const grouped: Record<
+      string,
+      {
+        totalSales: number;
+        totalAmount: number;
+        totalCookingHours: string;
+        transactions: SaleTransaction[];
+      }
+    > = {};
+
+    for (const t of transactions) {
+      const dateKey = new Date(t.createdAt).toISOString().split('T')[0];
+
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = {
+          totalSales: 0,
+          totalAmount: 0,
+          totalCookingHours: '0.00',
+          transactions: [],
+        };
+      }
+
+      grouped[dateKey].totalSales += 1;
+      grouped[dateKey].totalAmount += Number(t.amount);
+      grouped[dateKey].transactions.push(t);
+    }
+
+    // Compute cooking hours per day
+    for (const dateKey in grouped) {
+      const totalMinutes = grouped[dateKey].transactions.reduce(
+        (sum, t) => sum + Number(t.durationMinutes),
+        0,
+      );
+      grouped[dateKey].totalCookingHours = (totalMinutes / 60).toFixed(2);
+    }
+
+    // Return as sorted array
+    return Object.entries(grouped)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, data]) => ({ date, ...data }));
+  }
+
   // 1. Worker Report
-  async getWorkerReport(nationalId: string, startDate: string, endDate: string) {
+  async getWorkerReport(
+    nationalId: string,
+    startDate: string,
+    endDate: string,
+  ) {
     const { start, end } = this.getDateRange(startDate, endDate);
 
     const worker = await this.userRepository.findOne({
@@ -40,15 +88,14 @@ export class ReportsService {
 
     const kitchenIds = worker.kitchens.map((k) => k.id);
 
-    // Need to join burner -> stove -> kitchen
     const transactions = await this.saleTransactionRepository.find({
       where: {
         burner: {
           stove: {
             kitchen: {
-                id: In(kitchenIds)
-            }
-          }
+              id: In(kitchenIds),
+            },
+          },
         },
         createdAt: Between(start, end),
       },
@@ -56,8 +103,14 @@ export class ReportsService {
     });
 
     const totalTransactions = transactions.length;
-    const totalAmount = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
-    const totalMinutes = transactions.reduce((sum, t) => sum + Number(t.durationMinutes), 0);
+    const totalAmount = transactions.reduce(
+      (sum, t) => sum + Number(t.amount),
+      0,
+    );
+    const totalMinutes = transactions.reduce(
+      (sum, t) => sum + Number(t.durationMinutes),
+      0,
+    );
 
     return {
       worker: { name: worker.name, nationalId: worker.nationalId },
@@ -67,17 +120,20 @@ export class ReportsService {
         totalAmount,
         totalCookingHours: (totalMinutes / 60).toFixed(2),
       },
-      // ... kitchen grouping logic similar to before but accessing t.burner.stove.kitchen ...
     };
   }
 
-  // 2. Kitchen Report
-  async getKitchenReport(kitchenId: string, startDate: string, endDate: string) {
+  // 2. Kitchen Report — with daily breakdown
+  async getKitchenReport(
+    kitchenId: string,
+    startDate: string,
+    endDate: string,
+  ) {
     const { start, end } = this.getDateRange(startDate, endDate);
 
     const kitchen = await this.kitchenRepository.findOne({
       where: { id: kitchenId },
-      relations: ['worker'], 
+      relations: ['worker'],
     });
 
     if (!kitchen) return { error: 'Kitchen not found' };
@@ -85,24 +141,38 @@ export class ReportsService {
     const transactions = await this.saleTransactionRepository.find({
       where: {
         burner: {
-            stove: {
-                kitchen: { id: kitchenId }
-            }
+          stove: {
+            kitchen: { id: kitchenId },
+          },
         },
         createdAt: Between(start, end),
       },
       relations: ['burner', 'burner.stove'],
+      order: { createdAt: 'ASC' },
     });
 
-    // ... calculation logic ...
     const totalTransactions = transactions.length;
-    const totalAmount = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
-    const totalMinutes = transactions.reduce((sum, t) => sum + Number(t.durationMinutes), 0);
+    const totalAmount = transactions.reduce(
+      (sum, t) => sum + Number(t.amount),
+      0,
+    );
+    const totalMinutes = transactions.reduce(
+      (sum, t) => sum + Number(t.durationMinutes),
+      0,
+    );
+
+    // Daily breakdown
+    const dailySales = this.groupTransactionsByDate(transactions);
 
     return {
-        kitchen: { name: kitchen.name },
-        summary: { totalSales: totalTransactions, totalAmount },
-        // ...
+      kitchen: { id: kitchen.id, name: kitchen.name },
+      dateRange: { startDate: start, endDate: end },
+      summary: {
+        totalSales: totalTransactions,
+        totalAmount,
+        totalCookingHours: (totalMinutes / 60).toFixed(2),
+      },
+      dailySales, // <-- per-day breakdown
     };
   }
 
@@ -122,24 +192,31 @@ export class ReportsService {
         burner: { id: burnerId },
         createdAt: Between(start, end),
       },
+      order: { createdAt: 'ASC' },
     });
 
-    // ... calculation logic ...
     return {
-        burner: { name: burner.name, stove: burner.stove.name, kitchen: burner.stove.kitchen.name },
-        transactions
-    }
+      burner: {
+        name: burner.name,
+        stove: burner.stove.name,
+        kitchen: burner.stove.kitchen.name,
+      },
+      transactions,
+    };
   }
 
-  // ... other methods follow similar relation path pattern: burner.stove.kitchen
   async getOverallReport(startDate: string, endDate: string) {
-      // Implement using updated relations
-      const { start, end } = this.getDateRange(startDate, endDate);
-      return { message: "Overall report pending implementation with new schema" };
+    const { start, end } = this.getDateRange(startDate, endDate);
+    return { message: 'Overall report pending implementation with new schema' };
   }
-  
-  async getMultipleBurnersReport(burnerIds: string[], startDate: string, endDate: string) {
-      // Implement using updated relations
-      return { message: "Multiple burners report pending implementation with new schema" };
+
+  async getMultipleBurnersReport(
+    burnerIds: string[],
+    startDate: string,
+    endDate: string,
+  ) {
+    return {
+      message: 'Multiple burners report pending implementation with new schema',
+    };
   }
 }

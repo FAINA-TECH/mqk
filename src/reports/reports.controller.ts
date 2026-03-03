@@ -37,7 +37,10 @@ export class ReportsController {
   }
 
   @Get('kitchen')
-  @ApiOperation({ summary: 'Get report for a specific kitchen by date range' })
+  @ApiOperation({
+    summary:
+      'Get report for a specific kitchen by date range, including daily sales breakdown',
+  })
   @ApiQuery({
     name: 'kitchenId',
     required: true,
@@ -97,7 +100,6 @@ export class ReportsController {
   @ApiQuery({
     name: 'burnerIds',
     required: true,
-    type: [String],
     isArray: true,
     example: 'burner-123,burner-456',
   })
@@ -118,7 +120,6 @@ export class ReportsController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    // Handle string or array input for burnerIds
     const burnerIdArray = Array.isArray(burnerIds)
       ? burnerIds
       : typeof burnerIds === 'string'
@@ -162,7 +163,6 @@ export class ReportsController {
     example: '2025-03-30',
   })
   getDailySalesReport(@Query('date') date: string) {
-    // Use the same date for both start and end to get just one day
     return this.reportsService.getOverallReport(date, date);
   }
 
@@ -174,10 +174,8 @@ export class ReportsController {
     @Query('year') year: number,
     @Query('month') month: number,
   ) {
-    // Calculate start and end dates for the month
     const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
     const endDate = new Date(year, month, 0).toISOString().split('T')[0];
-
     return this.reportsService.getOverallReport(startDate, endDate);
   }
 }
