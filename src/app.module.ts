@@ -13,6 +13,7 @@ import { ReportsModule } from './reports/reports.module';
 import { TimerStateModule } from './timer-state/timer-state.module';
 import { Burner } from './kitchen/entities/burner.entity';
 import { Stove } from './kitchen/entities/stove.entity';
+import { ScriptedSaleModule } from './scripted-sale/scripted-sale.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { Stove } from './kitchen/entities/stove.entity';
     SaleTransactionModule,
     SalesModule,
     ReportsModule,
+    ScriptedSaleModule,
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.DATABASE_URL,
