@@ -346,6 +346,7 @@ export class ScriptedSaleService {
     kitchenId: string,
     startDate: string,
     endDate: string,
+    showTransactions = false,
   ) {
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
@@ -367,35 +368,108 @@ export class ScriptedSaleService {
       0,
     );
 
-    // Group by date
     const grouped: Record<
       string,
-      { totalSales: number; totalAmount: number; totalCookingHours: string }
+      {
+        totalSales: number;
+        totalAmount: number;
+        totalMinutes: number;
+        burners: Record<
+          string,
+          {
+            burnerId: string;
+            burnerName: string;
+            stoveName: string;
+            totalSales: number;
+            totalAmount: number;
+            totalMinutes: number;
+            transactions: {
+              id: string;
+              transactionDate: Date;
+              durationMinutes: number;
+              amount: number;
+              paymentMethod: string;
+              phone: string;
+            }[];
+          }
+        >;
+      }
     > = {};
+
     for (const t of transactions) {
-      const key = new Date(t.transactionDate).toISOString().split('T')[0];
-      if (!grouped[key])
-        grouped[key] = {
+      const dateKey = new Date(t.transactionDate).toISOString().split('T')[0];
+      const burnerId = t.burner?.id ?? 'unknown';
+      const burnerName = t.burner?.name ?? 'Unknown Burner';
+      const stoveName = t.burner?.stove?.name ?? 'Unknown Stove';
+
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = {
           totalSales: 0,
           totalAmount: 0,
-          totalCookingHours: '0',
+          totalMinutes: 0,
+          burners: {},
         };
-      grouped[key].totalSales += 1;
-      grouped[key].totalAmount += Number(t.amount);
-    }
-    for (const key in grouped) {
-      const mins = transactions
-        .filter(
-          (t) =>
-            new Date(t.transactionDate).toISOString().split('T')[0] === key,
-        )
-        .reduce((s, t) => s + Number(t.durationMinutes), 0);
-      grouped[key].totalCookingHours = (mins / 60).toFixed(2);
+      }
+
+      grouped[dateKey].totalSales += 1;
+      grouped[dateKey].totalAmount += Number(t.amount);
+      grouped[dateKey].totalMinutes += Number(t.durationMinutes);
+
+      if (!grouped[dateKey].burners[burnerId]) {
+        grouped[dateKey].burners[burnerId] = {
+          burnerId,
+          burnerName,
+          stoveName,
+          totalSales: 0,
+          totalAmount: 0,
+          totalMinutes: 0,
+          transactions: [],
+        };
+      }
+
+      grouped[dateKey].burners[burnerId].totalSales += 1;
+      grouped[dateKey].burners[burnerId].totalAmount += Number(t.amount);
+      grouped[dateKey].burners[burnerId].totalMinutes += Number(
+        t.durationMinutes,
+      );
+
+      // Always collect — we'll strip them out if showTransactions is false
+      grouped[dateKey].burners[burnerId].transactions.push({
+        id: t.id,
+        transactionDate: t.transactionDate,
+        durationMinutes: Number(t.durationMinutes),
+        amount: Number(t.amount),
+        paymentMethod: t.paymentMethod,
+        phone: t.phone,
+      });
     }
 
     const dailySales = Object.entries(grouped)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, data]) => ({ date, ...data }));
+      .map(([date, data]) => ({
+        date,
+        totalSales: data.totalSales,
+        totalAmount: data.totalAmount,
+        totalCookingHours: (data.totalMinutes / 60).toFixed(2),
+        burners: Object.values(data.burners)
+          .sort((a, b) => a.burnerName.localeCompare(b.burnerName))
+          .map((b) => ({
+            burnerId: b.burnerId,
+            burnerName: b.burnerName,
+            stoveName: b.stoveName,
+            totalSales: b.totalSales,
+            totalAmount: b.totalAmount,
+            totalCookingHours: (b.totalMinutes / 60).toFixed(2),
+            // Only include transactions array when explicitly requested
+            ...(showTransactions && {
+              transactions: b.transactions.sort(
+                (a, b) =>
+                  new Date(a.transactionDate).getTime() -
+                  new Date(b.transactionDate).getTime(),
+              ),
+            }),
+          })),
+      }));
 
     return {
       kitchenId,
@@ -408,7 +482,6 @@ export class ScriptedSaleService {
       dailySales,
     };
   }
-
   // ─── Public: delete scripted data for kitchen + month (for re-generation) ──
 
   async deleteForMonth(

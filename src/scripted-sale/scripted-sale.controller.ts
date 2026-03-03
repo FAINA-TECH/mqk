@@ -31,12 +31,25 @@ export class ScriptedSaleController {
   })
   @ApiQuery({ name: 'startDate', required: true, example: '2026-01-01' })
   @ApiQuery({ name: 'endDate', required: true, example: '2026-01-31' })
+  @ApiQuery({
+    name: 'showTransactions',
+    required: false,
+    type: Boolean,
+    example: false,
+  })
   getByKitchen(
     @Query('kitchenId') kitchenId: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
+    @Query('showTransactions') showTransactions?: string,
   ) {
-    return this.service.getByKitchenAndDateRange(kitchenId, startDate, endDate);
+    const detailed = showTransactions === 'true';
+    return this.service.getByKitchenAndDateRange(
+      kitchenId,
+      startDate,
+      endDate,
+      detailed,
+    );
   }
 
   @Delete('month')
