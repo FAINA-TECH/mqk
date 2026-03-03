@@ -1,3 +1,4 @@
+// src/scripted-sale/scripted-sale.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -14,98 +15,66 @@ import { Burner } from '../kitchen/entities/burner.entity';
 import { Kitchen } from '../kitchen/entities/kitchen.entity';
 import { GenerateScriptedRunsDto } from './dto/generate-scripted-runs.dto';
 
-// ─── Kitchen config ────────────────────────────────────────────────────────────
-
-interface KitchenConfig {
-  monthlyTarget: number;
-  isCommercial: boolean;
-  // For commercial kitchens: fraction of customers that are delivery/commercial
-  commercialFraction?: number;
-}
-
-const KITCHEN_CONFIG: Record<string, KitchenConfig> = {
-  '3d9b0421-58ac-4a1d-855a-1998a7438a4f': {
-    monthlyTarget: 40500,
-    isCommercial: true,
-    commercialFraction: 0.35, // 35% commercial/delivery customers
-  },
-  'aaba202a-97bc-4330-a7db-50e68c8f6d7a': {
-    monthlyTarget: 55500,
-    isCommercial: false,
-  },
-  '86615649-9f97-4638-9a6d-449f6d14fd24': {
-    monthlyTarget: 20000,
-    isCommercial: false,
-  },
+// Target monthly revenues per kitchen (KSH)
+const KITCHEN_MONTHLY_TARGETS: Record<string, number> = {
+  '3d9b0421-58ac-4a1d-855a-1998a7438a4f': 40500, //soweto 88
+  'aaba202a-97bc-4330-a7db-50e68c8f6d7a': 55500, //Soweto Kibagare
+  '86615649-9f97-4638-9a6d-449f6d14fd24': 20000, //Rasta Stage
 };
+const DEFAULT_MONTHLY_TARGET = 30000;
 
-const DEFAULT_CONFIG: KitchenConfig = {
-  monthlyTarget: 30000,
-  isCommercial: false,
-};
-
-// ─── Hour pools ────────────────────────────────────────────────────────────────
-
-// Regular customers: full day, meal-peak weighted, 8am–9pm
-function buildRegularHourPool(): number[] {
+// Meal-peak weighted hour pool
+function buildHourPool(): number[] {
   const pool: number[] = [];
-  for (let i = 0; i < 2; i++) pool.push(8); // opening, light
+
+  // Opening hour 8 (light — people just arriving)
+  for (let i = 0; i < 2; i++) pool.push(8);
+
+  // Breakfast peak 9–10
   [9, 10].forEach((h) => {
     for (let i = 0; i < 4; i++) pool.push(h);
-  }); // breakfast peak
-  for (let i = 0; i < 2; i++) pool.push(11); // mid-morning moderate
+  });
+
+  // Mid-morning 11 (moderate)
+  for (let i = 0; i < 2; i++) pool.push(11);
+
+  // Lunch peak 12–14 (congested, 12–13 heaviest)
   [12, 13].forEach((h) => {
     for (let i = 0; i < 7; i++) pool.push(h);
-  }); // lunch congested
+  });
   [14].forEach((h) => {
     for (let i = 0; i < 4; i++) pool.push(h);
-  }); // early afternoon
-  [15, 16].forEach((h) => pool.push(h)); // afternoon lull
+  });
+
+  // Afternoon lull 15–16 (very light)
+  [15, 16].forEach((h) => pool.push(h));
+
+  // Supper peak 17–19 (heaviest period of day)
   [17, 18, 19].forEach((h) => {
     for (let i = 0; i < 7; i++) pool.push(h);
-  }); // supper peak
-  for (let i = 0; i < 2; i++) pool.push(20); // winding down
-  pool.push(21); // rare straggler
+  });
+
+  // Winding down 20 (light — last few customers)
+  for (let i = 0; i < 2; i++) pool.push(20);
+
+  // Occasional late stragglers 21 — kitchen slightly extended, rare
+  pool.push(21);
+
   return pool;
 }
-
-// Commercial/delivery customers: morning drop-off and evening drop-off only
-// Morning: 8–10 (food brought early)
-// Evening: 16–19 (afternoon/evening batch)
-function buildCommercialHourPool(): number[] {
-  const pool: number[] = [];
-  // Morning batch — food brought early, heavy
-  [8, 9].forEach((h) => {
-    for (let i = 0; i < 6; i++) pool.push(h);
-  });
-  for (let i = 0; i < 3; i++) pool.push(10); // trailing morning
-  // Evening batch — late afternoon/evening, heaviest
-  [16, 17].forEach((h) => {
-    for (let i = 0; i < 5; i++) pool.push(h);
-  });
-  [18, 19].forEach((h) => {
-    for (let i = 0; i < 4; i++) pool.push(h);
-  });
-  return pool;
-}
-
-const REGULAR_HOUR_POOL = buildRegularHourPool();
-const COMMERCIAL_HOUR_POOL = buildCommercialHourPool();
-
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+const HOUR_POOL = buildHourPool();
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
 function gaussianRandom(mean: number, std: number): number {
+  // Box-Muller transform
   const u = 1 - Math.random();
   const v = Math.random();
   const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
   return Math.round(mean + z * std);
 }
-
-// ─── Service ───────────────────────────────────────────────────────────────────
 
 @Injectable()
 export class ScriptedSaleService {
@@ -118,15 +87,15 @@ export class ScriptedSaleService {
     private kitchenRepository: Repository<Kitchen>,
   ) {}
 
-  // ─── Core generation ────────────────────────────────────────────────────────
+  // ─── Core generation for a list of dates ──────────────────────────────────
 
   private async generateForDates(
     kitchenId: string,
     dates: Date[],
     monthlyTarget: number,
     workingDaysInMonth: number,
-    config: KitchenConfig,
   ): Promise<ScriptedSaleTransaction[]> {
+    // Load burners for this kitchen
     const burners = await this.burnerRepository.find({
       where: { stove: { kitchen: { id: kitchenId } } },
       relations: ['stove', 'stove.kitchen', 'stove.kitchen.worker'],
@@ -146,38 +115,34 @@ export class ScriptedSaleService {
     }
 
     const attendantPhone = worker.phone;
+
+    // Average revenue per working day
     const dailyTargetRevenue = monthlyTarget / workingDaysInMonth;
 
-    // For commercial kitchens we have two types of customers with different
-    // avg sale values so we compute a blended average:
-    //
-    // Regular:    30m=20, 60m=30, 90m=50  → avg ≈ 32.5
-    // Commercial: 60m=50, 90m=75, 120m=100 → avg ≈ 75  (50/hr, up to 2hrs)
-    //
-    // blended avg = (regularFrac * 32.5) + (commercialFrac * 75)
-
-    const commercialFraction = config.isCommercial
-      ? (config.commercialFraction ?? 0.35)
-      : 0;
-    const regularFraction = 1 - commercialFraction;
-
-    const avgRegularSale = 32.5;
-    const avgCommercialSale = 75;
-    const blendedAvgSale =
-      regularFraction * avgRegularSale + commercialFraction * avgCommercialSale;
-
-    const baseDailyCustomers = Math.round(dailyTargetRevenue / blendedAvgSale);
+    // Average sale value — weighted mix of 30m/60m/90m sessions
+    // 30m=20, 60m=30, 90m=50 → weighted avg ≈ (0.25*20 + 0.50*30 + 0.25*50) = 32.5
+    const avgSaleValue = 32.5;
+    const baseDailyCustomers = Math.round(dailyTargetRevenue / avgSaleValue);
 
     const transactions: ScriptedSaleTransaction[] = [];
 
     for (const date of dates) {
+      // Skip Sundays
       if (date.getDay() === 0) continue;
 
+      // Day-of-week multiplier: Mon/Tue lighter, Wed-Fri normal, Sat busier
       const dow = date.getDay();
       const dowMultiplier =
-        dow === 6 ? 1.25 : dow === 5 ? 1.1 : dow === 1 ? 0.8 : 1.0;
+        dow === 6
+          ? 1.25 // Saturday: busy
+          : dow === 5
+            ? 1.1 // Friday: slightly busy
+            : dow === 1
+              ? 0.8 // Monday: slower start
+              : 1.0;
 
-      const totalCustomers = Math.max(
+      // Gaussian variance around base, ±25% std dev
+      const targetCustomers = Math.max(
         2,
         gaussianRandom(
           baseDailyCustomers * dowMultiplier,
@@ -185,27 +150,24 @@ export class ScriptedSaleService {
         ),
       );
 
-      // Split into regular and commercial
-      const numCommercial = config.isCommercial
-        ? Math.round(totalCustomers * commercialFraction)
-        : 0;
-      const numRegular = totalCustomers - numCommercial;
-
-      // ── Regular customers ──────────────────────────────────────────────────
-      for (let i = 0; i < numRegular; i++) {
+      // Distribute customers across burners — cap per burner per hour to avoid congestion
+      // But allow bunching at peak hours naturally
+      for (let i = 0; i < targetCustomers; i++) {
         const burner = pickRandom(burners);
 
-        // Duration: 30m(25%), 60m(50%), 90m(25%)
+        // Duration distribution: 30m(25%), 60m(50%), 90m(25%)
         const r = Math.random();
         const durationMinutes = r < 0.25 ? 30 : r < 0.75 ? 60 : 90;
 
+        // Amount based on burner rates
         let amount = 0;
         const hours = Math.floor(durationMinutes / 60);
         const remainder = durationMinutes % 60;
         if (hours > 0) amount += hours * Number(burner.hourlyRate);
         if (remainder > 0) amount += Number(burner.partialRate);
 
-        const hour = pickRandom(REGULAR_HOUR_POOL);
+        // Pick a realistic hour (meal-peak weighted)
+        const hour = pickRandom(HOUR_POOL);
         const minute = Math.floor(Math.random() * 60);
 
         const transactionDate = new Date(
@@ -216,67 +178,25 @@ export class ScriptedSaleService {
           minute,
         );
 
-        transactions.push(
-          this.scriptedRepo.create({
-            burner,
-            kitchenId,
-            phone: attendantPhone,
-            durationMinutes,
-            amount,
-            paymentMethod: ScriptedPaymentMethod.CASH,
-            runtype: 'R', // Regular
-            transactionDate,
-          }),
-        );
-      }
+        const tx = this.scriptedRepo.create({
+          burner,
+          kitchenId,
+          phone: attendantPhone,
+          durationMinutes,
+          amount,
+          paymentMethod: ScriptedPaymentMethod.CASH,
+          runtype: 'S',
+          transactionDate,
+        });
 
-      // ── Commercial/delivery customers ──────────────────────────────────────
-      for (let i = 0; i < numCommercial; i++) {
-        const burner = pickRandom(burners);
-
-        // Duration: 60m(30%), 90m(40%), 120m(30%) — cook longer
-        const r = Math.random();
-        const durationMinutes = r < 0.3 ? 60 : r < 0.7 ? 90 : 120;
-
-        // Commercial rate: KSH 50/hr
-        const commercialHourlyRate = 50;
-        const hours = Math.floor(durationMinutes / 60);
-        const remainder = durationMinutes % 60;
-        let amount = hours * commercialHourlyRate;
-        // 30min partial at commercial rate = 25bob
-        if (remainder > 0) amount += 25;
-
-        // Only morning or evening slots
-        const hour = pickRandom(COMMERCIAL_HOUR_POOL);
-        const minute = Math.floor(Math.random() * 60);
-
-        const transactionDate = new Date(
-          date.getFullYear(),
-          date.getMonth(),
-          date.getDate(),
-          hour,
-          minute,
-        );
-
-        transactions.push(
-          this.scriptedRepo.create({
-            burner,
-            kitchenId,
-            phone: attendantPhone,
-            durationMinutes,
-            amount,
-            paymentMethod: ScriptedPaymentMethod.CASH,
-            runtype: 'C', // Commercial
-            transactionDate,
-          }),
-        );
+        transactions.push(tx);
       }
     }
 
     return transactions;
   }
 
-  // ─── Working days ────────────────────────────────────────────────────────────
+  // ─── Get all working days in a month (Mon–Sat) ────────────────────────────
 
   private getWorkingDays(
     year: number,
@@ -291,12 +211,12 @@ export class ScriptedSaleService {
 
     for (let d = 1; d <= lastDay; d++) {
       const date = new Date(year, month - 1, d);
-      if (date.getDay() !== 0) days.push(date);
+      if (date.getDay() !== 0) days.push(date); // exclude Sundays
     }
     return days;
   }
 
-  // ─── Generate for month ──────────────────────────────────────────────────────
+  // ─── Public: generate for month ────────────────────────────────────────────
 
   async generateForMonth(
     kitchenId: string,
@@ -313,6 +233,7 @@ export class ScriptedSaleService {
       );
     }
 
+    // Check for existing data to avoid duplicates
     const firstDay = new Date(year, month - 1, 1);
     firstDay.setHours(0, 0, 0, 0);
     const lastDayDate = new Date(year, month, 0);
@@ -331,16 +252,18 @@ export class ScriptedSaleService {
       );
     }
 
-    const config = KITCHEN_CONFIG[kitchenId] ?? DEFAULT_CONFIG;
     const allWorkingDays = this.getWorkingDays(year, month, false);
+    const workingDaysInFullMonth = allWorkingDays.length;
     const datesToGenerate = this.getWorkingDays(year, month, isCurrentMonth);
+
+    const monthlyTarget =
+      KITCHEN_MONTHLY_TARGETS[kitchenId] ?? DEFAULT_MONTHLY_TARGET;
 
     const transactions = await this.generateForDates(
       kitchenId,
       datesToGenerate,
-      config.monthlyTarget,
-      allWorkingDays.length,
-      config,
+      monthlyTarget,
+      workingDaysInFullMonth, // use full month denominator so per-day target is correct
     );
 
     await this.scriptedRepo.save(transactions, { chunk: 500 });
@@ -351,7 +274,7 @@ export class ScriptedSaleService {
     };
   }
 
-  // ─── Generate for specific date ──────────────────────────────────────────────
+  // ─── Public: generate for a specific date ──────────────────────────────────
 
   async generateForDate(
     kitchenId: string,
@@ -392,17 +315,17 @@ export class ScriptedSaleService {
       );
     }
 
-    const config = KITCHEN_CONFIG[kitchenId] ?? DEFAULT_CONFIG;
     const year = date.getFullYear();
     const month = date.getMonth() + 1;
     const allWorkingDays = this.getWorkingDays(year, month, false);
+    const monthlyTarget =
+      KITCHEN_MONTHLY_TARGETS[kitchenId] ?? DEFAULT_MONTHLY_TARGET;
 
     const transactions = await this.generateForDates(
       kitchenId,
       [date],
-      config.monthlyTarget,
+      monthlyTarget,
       allWorkingDays.length,
-      config,
     );
 
     await this.scriptedRepo.save(transactions, { chunk: 500 });
@@ -413,7 +336,7 @@ export class ScriptedSaleService {
     };
   }
 
-  // ─── Unified entry point ─────────────────────────────────────────────────────
+  // ─── Public: unified entry point ───────────────────────────────────────────
 
   async generate(
     dto: GenerateScriptedRunsDto,
@@ -421,15 +344,17 @@ export class ScriptedSaleService {
     if (dto.specificDate) {
       return this.generateForDate(dto.kitchenId, dto.specificDate);
     }
+
     if (!dto.year || !dto.month) {
       throw new BadRequestException(
         'Provide either specificDate or both year and month.',
       );
     }
+
     return this.generateForMonth(dto.kitchenId, dto.year, dto.month);
   }
 
-  // ─── Get by kitchen + date range ────────────────────────────────────────────
+  // ─── Public: get scripted sales by kitchen + date range ────────────────────
 
   async getByKitchenAndDateRange(
     kitchenId: string,
@@ -485,7 +410,6 @@ export class ScriptedSaleService {
               amount: number;
               paymentMethod: string;
               phone: string;
-              runtype: string;
             }[];
           }
         >;
@@ -536,7 +460,6 @@ export class ScriptedSaleService {
         amount: Number(t.amount),
         paymentMethod: t.paymentMethod,
         phone: t.phone,
-        runtype: t.runtype,
       });
     }
 
@@ -578,8 +501,7 @@ export class ScriptedSaleService {
       dailySales,
     };
   }
-
-  // ─── Delete for month ────────────────────────────────────────────────────────
+  // ─── Public: delete scripted data for kitchen + month (for re-generation) ──
 
   async deleteForMonth(
     kitchenId: string,
