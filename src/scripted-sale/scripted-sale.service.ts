@@ -26,28 +26,42 @@ const DEFAULT_MONTHLY_TARGET = 30000;
 // Meal-peak weighted hour pool
 function buildHourPool(): number[] {
   const pool: number[] = [];
-  // Breakfast 6–9 (high)
-  [6, 7, 8, 9].forEach((h) => {
+
+  // Opening hour 8 (light — people just arriving)
+  for (let i = 0; i < 2; i++) pool.push(8);
+
+  // Breakfast peak 9–10
+  [9, 10].forEach((h) => {
     for (let i = 0; i < 4; i++) pool.push(h);
   });
-  // Mid-morning 10 (low)
-  pool.push(10);
-  // Lunch 11–14 (high, especially 12–13)
-  [11, 14].forEach((h) => {
-    for (let i = 0; i < 3; i++) pool.push(h);
-  });
+
+  // Mid-morning 11 (moderate)
+  for (let i = 0; i < 2; i++) pool.push(11);
+
+  // Lunch peak 12–14 (congested, 12–13 heaviest)
   [12, 13].forEach((h) => {
-    for (let i = 0; i < 6; i++) pool.push(h);
-  }); // congested noon
-  // Afternoon 15–16 (very low)
-  [15, 16].forEach((h) => pool.push(h));
-  // Supper 17–20 (high)
-  [17, 18, 19, 20].forEach((h) => {
-    for (let i = 0; i < 5; i++) pool.push(h);
+    for (let i = 0; i < 7; i++) pool.push(h);
   });
+  [14].forEach((h) => {
+    for (let i = 0; i < 4; i++) pool.push(h);
+  });
+
+  // Afternoon lull 15–16 (very light)
+  [15, 16].forEach((h) => pool.push(h));
+
+  // Supper peak 17–19 (heaviest period of day)
+  [17, 18, 19].forEach((h) => {
+    for (let i = 0; i < 7; i++) pool.push(h);
+  });
+
+  // Winding down 20 (light — last few customers)
+  for (let i = 0; i < 2; i++) pool.push(20);
+
+  // Occasional late stragglers 21 — kitchen slightly extended, rare
+  pool.push(21);
+
   return pool;
 }
-
 const HOUR_POOL = buildHourPool();
 
 function pickRandom<T>(arr: T[]): T {
