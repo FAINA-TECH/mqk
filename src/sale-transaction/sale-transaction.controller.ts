@@ -3,6 +3,7 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SaleTransactionService } from './sale-transaction.service';
 import { CreateSaleTransactionDto } from './dto/create-sale-transaction.dto';
 import { SaleTransaction } from './entities/sale-transaction.entity';
+import { GenerateDummyDataDto } from './dto/generate-dummy-data.dto';
 
 @ApiTags('sale-transactions')
 @Controller('sale-transactions')
@@ -10,6 +11,21 @@ export class SaleTransactionController {
   constructor(
     private readonly saleTransactionService: SaleTransactionService,
   ) {}
+
+  @Post('generate-runs')
+  @ApiOperation({ summary: 'Generate Attendant sales data' })
+  @ApiResponse({
+    status: 201,
+    description: 'Attendant data generated successfully',
+  })
+  generateDummy(@Body() dto: GenerateDummyDataDto) {
+    return this.saleTransactionService.generateDummyData(
+      dto.kitchenId,
+      dto.month,
+      dto.year,
+      dto.averageDailyCustomers,
+    );
+  }
 
   @Post()
   @ApiOperation({ summary: 'Create a new sale transaction' })

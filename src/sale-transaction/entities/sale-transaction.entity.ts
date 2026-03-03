@@ -47,6 +47,14 @@ export class SaleTransaction {
   })
   amount: number;
 
+  @Column({ default: 'R' })
+  @ApiProperty({
+    description:
+      'Type of transaction: R for Customer Made, M for Attendant Made',
+    example: 'R',
+  })
+  runtype: string;
+
   @Column({
     type: 'enum',
     enum: PaymentMethod,

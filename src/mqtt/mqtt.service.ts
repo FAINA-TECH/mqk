@@ -19,6 +19,8 @@ export class MqttService implements OnModuleInit {
       connectTimeout: 4000,
       username: 'mega_WS_10001',
       password: 'mega_WS_10001',
+      // username: 'mega_WS_10005',
+      // password: 'mega_WS_10005',
       reconnectPeriod: 1000,
     });
 
@@ -29,7 +31,7 @@ export class MqttService implements OnModuleInit {
       // Subscribe to ALL kitchen status updates using wildcard
       // Topic structure: megagas/{stoveId}/kitchenStatus
       const wildcardTopic = 'megagas/+/kitchenStatus';
-      
+
       this.mqttClient.subscribe(wildcardTopic, (err) => {
         if (err) {
           this.logger.error(`Failed to subscribe to ${wildcardTopic}`, err);

@@ -43,6 +43,14 @@ export class User {
   })
   password: string;
 
+  @Column({ nullable: true })
+  @ApiProperty({
+    description: 'Phone number of the user',
+    example: '+254712345678',
+    required: false,
+  })
+  phone?: string;
+
   @Column({
     type: 'enum',
     enum: UserRole,
